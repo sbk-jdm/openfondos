@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <!--
   Archivo: index.html
-  OpenFondos · App envoltorio (PWA) · v1.1
+  OpenFondos · App envoltorio (PWA) · v1.2
+  v1.2: en iPhone, iPad (cualquier navegador) y Safari de Mac abre el panel directamente, sin iframe:
+        su motor (WebKit) bloquea las cookies de terceros y Google no reconoce la sesión dentro del marco.
+        Forzar un modo: ?marco=1 (siempre iframe) o ?marco=0 (siempre directo).
   Muestra el panel de Apps Script a pantalla completa dentro de un iframe, en vista de escritorio
   (/exec?app=1) o móvil (/exec?v=movil&app=1).
   Vista: parámetro ?v=escritorio|movil > última elegida con los botones del panel > ancho de pantalla.
@@ -54,13 +57,13 @@
       <p>El panel no ha respondido. Causas habituales:</p>
       <ol>
         <li>No hay sesión iniciada en Google en Chrome con la cuenta propietaria de la hoja.</li>
-        <li>Chrome bloquea las cookies de terceros para este sitio (Ajustes &gt; Configuración de sitios &gt; Cookies de terceros &gt; permitir este sitio).</li>
+        <li>El navegador bloquea las cookies de terceros para este sitio (en Chrome: Ajustes &gt; Configuración de sitios &gt; Cookies de terceros &gt; permitir este sitio).</li>
         <li>Hay varias cuentas de Google abiertas y la predeterminada no es la propietaria.</li>
         <li>Sin conexión a internet.</li>
       </ol>
       <div class="botones">
         <button class="btn principal" id="btn-reintentar" type="button">Reintentar</button>
-        <a class="btn" id="btn-navegador" target="_blank" rel="noopener">Abrir en Chrome</a>
+        <a class="btn" id="btn-navegador" target="_top">Abrir directamente</a>
       </div>
     </div>
   </div>
@@ -91,6 +94,21 @@
       return window.innerWidth < ANCHO_MOVIL ? 'movil' : 'escritorio';
     }
     var vista = vistaInicial();
+
+    // WebKit (todos los navegadores de iPhone y iPad, y Safari en Mac) bloquea las cookies de terceros:
+    // dentro del iframe Google no ve la sesión. En esos casos se abre el panel directamente.
+    function bloqueaCookiesTerceros() {
+      var ua = navigator.userAgent || '';
+      var ios = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      var safariMac = /Macintosh/.test(ua) && /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS|Edg\/|OPR\//.test(ua);
+      return ios || safariMac;
+    }
+    function modoDirecto() {
+      var m = new URLSearchParams(location.search).get('marco');
+      if (m === '1') return false;
+      if (m === '0') return true;
+      return bloqueaCookiesTerceros();
+    }
     function urlPanel(conApp) {
       var q = vista === 'movil' ? '?v=movil' : '?';
       return PANEL_URL + q + (conApp ? (q === '?' ? '' : '&') + 'app=1&t=' + Date.now() : '');
@@ -150,10 +168,16 @@
       if (ocultaDesde && Date.now() - ocultaDesde > 6 * 3600 * 1000) cargar();
     });
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    if (modoDirecto()) {
+      // La página se sustituye por el panel (replace: el botón Atrás no vuelve aquí)
+      estado.textContent = 'Abriendo el panel…';
+      location.replace(urlPanel(false).replace(/\?$/, ''));
+    } else {
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+      }
+      cargar();
     }
-    cargar();
   </script>
 </body>
 </html>

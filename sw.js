@@ -1,10 +1,10 @@
 /*
   Archivo: sw.js
-  OpenFondos · App envoltorio (PWA) · service worker · v1.1
+  OpenFondos · App envoltorio (PWA) · service worker · v1.2
   Guarda en caché solo la carcasa de la app (esta página, manifiesto e iconos).
   El panel y los datos se cargan siempre en directo desde Apps Script; nunca se guardan aquí.
 */
-const CACHE = 'openfondos-app-v1-1';
+const CACHE = 'openfondos-app-v1-2';
 const CARCASA = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 
 self.addEventListener('install', ev => {

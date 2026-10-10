@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<!--
+  Archivo: index.html
+  OpenFondos · App envoltorio (PWA) · v1.0
+  Muestra el panel móvil de Apps Script (/exec?v=movil&app=1) a pantalla completa dentro de un iframe.
+  Junto a: manifest.webmanifest, sw.js, icon-192.png, icon-512.png, icon-maskable-512.png
+-->
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>OpenFondos</title>
+  <meta name="theme-color" content="#0E1113" id="meta-tema">
+  <meta name="color-scheme" content="dark light">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    :root { --fondo: #0E1113; --texto: #ECEFF0; --tenue: #9AA4AA; --borde: #262C30; --acento: #3987e5; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--fondo); color: var(--texto);
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
+    #panel { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: transparent; }
+    #inicio { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; padding: 24px; background: var(--fondo); transition: opacity .25s ease; text-align: center; }
+    #inicio.oculto { opacity: 0; pointer-events: none; }
+    #inicio img { width: 72px; height: 72px; border-radius: 16px; }
+    #inicio h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: .01em; }
+    #estado { margin: 0; font-size: 14px; color: var(--tenue); min-height: 1.4em; }
+    .barra { width: 140px; height: 3px; background: var(--borde); border-radius: 2px; overflow: hidden; }
+    .barra i { display: block; width: 40%; height: 100%; background: var(--acento); animation: mover 1.2s ease-in-out infinite; }
+    @keyframes mover { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+    #ayuda { display: none; max-width: 420px; font-size: 14px; line-height: 1.5; color: var(--tenue); text-align: left; }
+    #ayuda.visible { display: block; }
+    #ayuda ol { margin: 8px 0 16px; padding-left: 20px; }
+    .botones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .btn { appearance: none; border: 1px solid var(--borde); background: #171B1E; color: var(--texto); font: inherit; font-size: 14px;
+      padding: 10px 16px; border-radius: 10px; text-decoration: none; cursor: pointer; }
+    .btn.principal { background: var(--acento); border-color: var(--acento); color: #fff; }
+    @media (prefers-reduced-motion: reduce) { .barra i { animation: none; width: 100%; } #inicio { transition: none; } }
+  </style>
+</head>
+<body>
+  <iframe id="panel" title="Panel de cartera OpenFondos" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+
+  <div id="inicio" role="status" aria-live="polite">
+    <img src="icon-192.png" alt="">
+    <h1>OpenFondos</h1>
+    <div class="barra" id="barra"><i></i></div>
+    <p id="estado">Cargando el panel…</p>
+    <div id="ayuda">
+      <p>El panel no ha respondido. Causas habituales:</p>
+      <ol>
+        <li>No hay sesión iniciada en Google en Chrome con la cuenta propietaria de la hoja.</li>
+        <li>Chrome bloquea las cookies de terceros para este sitio (Ajustes &gt; Configuración de sitios &gt; Cookies de terceros &gt; permitir este sitio).</li>
+        <li>Hay varias cuentas de Google abiertas y la predeterminada no es la propietaria.</li>
+        <li>Sin conexión a internet.</li>
+      </ol>
+      <div class="botones">
+        <button class="btn principal" id="btn-reintentar" type="button">Reintentar</button>
+        <a class="btn" id="btn-navegador" target="_blank" rel="noopener">Abrir en Chrome</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===== Configuración ===== */
+    // URL del despliegue de Apps Script (no cambia al publicar nuevas versiones desde "Gestionar implementaciones").
+    var PANEL_URL = 'https://script.google.com/macros/s/AKfycbzvMILqcThuryW6_trm7eyxXMPKWjjV6rUPcqrFXlEAjDVp8UBNC80oJ9kIdPz5xx6OrA/exec';
+    var ESPERA_MS = 25000;   // tiempo antes de mostrar la ayuda si el panel no responde
+
+    var marco = document.getElementById('panel');
+    var inicio = document.getElementById('inicio');
+    var estado = document.getElementById('estado');
+    var ayuda = document.getElementById('ayuda');
+    var barra = document.getElementById('barra');
+    var metaTema = document.getElementById('meta-tema');
+    var listo = false, temporizador = null;
+
+    document.getElementById('btn-navegador').href = PANEL_URL + '?v=movil';
+
+    function mostrarAyuda(texto) {
+      if (listo) return;
+      estado.textContent = texto;
+      barra.style.display = 'none';
+      ayuda.classList.add('visible');
+    }
+    function cargar() {
+      listo = false;
+      inicio.classList.remove('oculto');
+      ayuda.classList.remove('visible');
+      barra.style.display = '';
+      if (!navigator.onLine) { mostrarAyuda('Sin conexión. Conéctate y pulsa Reintentar.'); return; }
+      estado.textContent = 'Cargando el panel…';
+      marco.src = PANEL_URL + '?v=movil&app=1&t=' + Date.now();
+      clearTimeout(temporizador);
+      temporizador = setTimeout(function () { mostrarAyuda('No se ha podido abrir el panel.'); }, ESPERA_MS);
+    }
+    function aplicarFondo(color) {
+      if (!color) return;
+      metaTema.setAttribute('content', color);
+      document.documentElement.style.setProperty('--fondo', color);
+    }
+
+    // Mensajes del panel (solo se aceptan los que vienen del dominio de Apps Script)
+    window.addEventListener('message', function (ev) {
+      var o = String(ev.origin || '');
+      if (!/^https:\/\/([a-z0-9-]+\.)*(googleusercontent\.com|google\.com)$/.test(o)) return;
+      var d = ev.data;
+      if (!d || typeof d !== 'object' || typeof d.openfondos !== 'string') return;
+      if (d.openfondos === 'listo') {
+        listo = true;
+        clearTimeout(temporizador);
+        inicio.classList.add('oculto');
+      } else if (d.openfondos === 'tema' && typeof d.fondo === 'string' && d.fondo.length < 40) {
+        aplicarFondo(d.fondo);
+      }
+    });
+
+    document.getElementById('btn-reintentar').addEventListener('click', cargar);
+    window.addEventListener('online', function () { if (!listo) cargar(); });
+
+    // Recarga automática si la app vuelve a primer plano tras mucho tiempo (datos del día)
+    var ocultaDesde = 0;
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { ocultaDesde = Date.now(); return; }
+      if (ocultaDesde && Date.now() - ocultaDesde > 6 * 3600 * 1000) cargar();
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    }
+    cargar();
+  </script>
+</body>
+</html>

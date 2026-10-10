@@ -2,7 +2,7 @@
   "id": "./",
   "name": "OpenFondos",
   "short_name": "OpenFondos",
-  "description": "Panel de seguimiento de la cartera de fondos.",
+  "description": "Panel de seguimiento de la cartera de fondos (escritorio y móvil).",
   "lang": "es",
   "dir": "ltr",
   "start_url": "./",

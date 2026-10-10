@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <!--
   Archivo: index.html
-  OpenFondos · App envoltorio (PWA) · v1.0
-  Muestra el panel móvil de Apps Script (/exec?v=movil&app=1) a pantalla completa dentro de un iframe.
+  OpenFondos · App envoltorio (PWA) · v1.1
+  Muestra el panel de Apps Script a pantalla completa dentro de un iframe, en vista de escritorio
+  (/exec?app=1) o móvil (/exec?v=movil&app=1).
+  Vista: parámetro ?v=escritorio|movil > última elegida con los botones del panel > ancho de pantalla.
   Junto a: manifest.webmanifest, sw.js, icon-192.png, icon-512.png, icon-maskable-512.png
 -->
 <html lang="es">
@@ -68,6 +70,8 @@
     // URL del despliegue de Apps Script (no cambia al publicar nuevas versiones desde "Gestionar implementaciones").
     var PANEL_URL = 'https://script.google.com/macros/s/AKfycbzvMILqcThuryW6_trm7eyxXMPKWjjV6rUPcqrFXlEAjDVp8UBNC80oJ9kIdPz5xx6OrA/exec';
     var ESPERA_MS = 25000;   // tiempo antes de mostrar la ayuda si el panel no responde
+    var ANCHO_MOVIL = 900;   // por debajo de este ancho (px) se abre la vista móvil si no hay preferencia
+    var CLAVE_VISTA = 'openfondos_app_vista';
 
     var marco = document.getElementById('panel');
     var inicio = document.getElementById('inicio');
@@ -77,7 +81,20 @@
     var metaTema = document.getElementById('meta-tema');
     var listo = false, temporizador = null;
 
-    document.getElementById('btn-navegador').href = PANEL_URL + '?v=movil';
+    function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function escribir(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
+    function vistaInicial() {
+      var p = new URLSearchParams(location.search).get('v');
+      if (p === 'movil' || p === 'escritorio') return p;
+      var g = leer(CLAVE_VISTA);
+      if (g === 'movil' || g === 'escritorio') return g;
+      return window.innerWidth < ANCHO_MOVIL ? 'movil' : 'escritorio';
+    }
+    var vista = vistaInicial();
+    function urlPanel(conApp) {
+      var q = vista === 'movil' ? '?v=movil' : '?';
+      return PANEL_URL + q + (conApp ? (q === '?' ? '' : '&') + 'app=1&t=' + Date.now() : '');
+    }
 
     function mostrarAyuda(texto) {
       if (listo) return;
@@ -92,7 +109,8 @@
       barra.style.display = '';
       if (!navigator.onLine) { mostrarAyuda('Sin conexión. Conéctate y pulsa Reintentar.'); return; }
       estado.textContent = 'Cargando el panel…';
-      marco.src = PANEL_URL + '?v=movil&app=1&t=' + Date.now();
+      document.getElementById('btn-navegador').href = urlPanel(false).replace(/\?$/, '');
+      marco.src = urlPanel(true);
       clearTimeout(temporizador);
       temporizador = setTimeout(function () { mostrarAyuda('No se ha podido abrir el panel.'); }, ESPERA_MS);
     }
@@ -114,6 +132,11 @@
         inicio.classList.add('oculto');
       } else if (d.openfondos === 'tema' && typeof d.fondo === 'string' && d.fondo.length < 40) {
         aplicarFondo(d.fondo);
+      } else if (d.openfondos === 'vista' && (d.v === 'movil' || d.v === 'escritorio') && d.v !== vista) {
+        vista = d.v;
+        escribir(CLAVE_VISTA, vista);
+        try { history.replaceState(null, '', location.pathname + '?v=' + vista); } catch (e) { /* sin historial */ }
+        cargar();
       }
     });
 

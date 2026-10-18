@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <!--
   Archivo: index.html
-  OpenFondos · App envoltorio (PWA) · v1.3
+  OpenFondos · App envoltorio (PWA) · v1.4
+  v1.4: la pantalla de carga muestra la versión publicada del panel (v3.4.1…), que el panel comunica al cargar y la
+        app recuerda para la siguiente apertura; ya no muestra la versión de la app envoltorio (sigue pasándola en ?appv=).
   v1.3: pasa su versión al panel (?appv=1.3), que la muestra junto a la del panel.
   v1.2: en iPhone, iPad (cualquier navegador) y Safari de Mac abre el panel directamente, sin iframe:
         su motor (WebKit) bloquea las cookies de terceros y Google no reconoce la sesión dentro del marco.
@@ -73,7 +75,8 @@
 
   <script>
     /* ===== Configuración ===== */
-    var APP_VERSION = '1.3';
+    var APP_VERSION = '1.4';
+    var CLAVE_PUBLICADA = 'openfondos_app_publicada';   // versión publicada del panel, la comunica el propio panel
     // URL del despliegue de Apps Script (no cambia al publicar nuevas versiones desde "Gestionar implementaciones").
     var PANEL_URL = 'https://script.google.com/macros/s/AKfycbzvMILqcThuryW6_trm7eyxXMPKWjjV6rUPcqrFXlEAjDVp8UBNC80oJ9kIdPz5xx6OrA/exec';
     var ESPERA_MS = 25000;   // tiempo antes de mostrar la ayuda si el panel no responde
@@ -87,7 +90,7 @@
     var barra = document.getElementById('barra');
     var metaTema = document.getElementById('meta-tema');
     var listo = false, temporizador = null;
-    document.getElementById('version-app').textContent = 'app v' + APP_VERSION;
+    document.getElementById('version-app').textContent = leer(CLAVE_PUBLICADA) || '';
 
     function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function escribir(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
@@ -157,6 +160,9 @@
         listo = true;
         clearTimeout(temporizador);
         inicio.classList.add('oculto');
+      } else if (d.openfondos === 'version' && typeof d.v === 'string' && /^v\d+(\.\d+){0,3}$/.test(d.v)) {
+        escribir(CLAVE_PUBLICADA, d.v);
+        document.getElementById('version-app').textContent = d.v;
       } else if (d.openfondos === 'tema' && typeof d.fondo === 'string' && d.fondo.length < 40) {
         aplicarFondo(d.fondo);
       } else if (d.openfondos === 'vista' && (d.v === 'movil' || d.v === 'escritorio') && d.v !== vista) {
